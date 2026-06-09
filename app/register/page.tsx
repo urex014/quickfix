@@ -29,7 +29,7 @@ export default function RegisterPage() {
 
       if (res.ok) {
         // Redirect to login page on success
-        router.push('/login');
+        router.push('/dashboard');
       } else {
         const data = await res.json();
         setError(data.error || 'Registration failed.');

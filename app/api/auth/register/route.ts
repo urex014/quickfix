@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     return NextResponse.json(
-      { error: 'An error occurred during registration' },
+      { error: `An error occurred during registration: ${error}` },
       { status: 500 }
     );
   }

@@ -1,4 +1,5 @@
-import NextAuth from 'next-auth';
+// app/api/auth/[...nextauth]/route.ts
+import NextAuth, { NextAuthOptions } from 'next-auth'; // <-- Add NextAuthOptions
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
@@ -9,7 +10,8 @@ const connectDB = async () => {
   await mongoose.connect(process.env.MONGODB_URI as string);
 };
 
-const handler = NextAuth({
+// 1. Extract the configuration into its own exported variable
+export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -19,31 +21,22 @@ const handler = NextAuth({
       },
       async authorize(credentials) {
         await connectDB();
-        
-        // Find user and explicitly select the password field we hid in the schema
         const user = await User.findOne({ email: credentials?.email }).select('+password');
-        
         if (!user) throw new Error('Invalid email or password');
 
-        const isPasswordMatch = await bcrypt.compare(
-          credentials!.password,
-          user.password
-        );
-
+        const isPasswordMatch = await bcrypt.compare(credentials!.password, user.password);
         if (!isPasswordMatch) throw new Error('Invalid email or password');
 
-        // Return the user object (minus password) to be saved in the session
         return {
           id: user._id.toString(),
           name: user.fullName,
           email: user.email,
-          role: user.role, // Crucial for role-based access later
+          role: user.role,
         };
       }
     })
   ],
   callbacks: {
-    // Inject the user's ID and role into the JWT
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -51,7 +44,6 @@ const handler = NextAuth({
       }
       return token;
     },
-    // Make the ID and role available in the frontend session object
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).id = token.id;
@@ -60,13 +52,12 @@ const handler = NextAuth({
       return session;
     }
   },
-  session: {
-    strategy: 'jwt',
-  },
-  pages: {
-    signIn: '/login', // Tell NextAuth where our custom login page is
-  },
+  session: { strategy: 'jwt' },
+  pages: { signIn: '/login' },
   secret: process.env.NEXTAUTH_SECRET,
-});
+};
+
+// 2. Pass the options to NextAuth
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
